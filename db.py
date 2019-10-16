@@ -165,7 +165,27 @@ class EvoGenDatabase(Database):
 
     @staticmethod
     def _read_fasta_to_dict(fasta_path):
-        pass
+        seqnames = []
+        seqs = []
+        tmp_seq = []
+
+        with open(fasta_path, 'r') as f:
+            for l in f:
+                if l.startswith('>'):
+                    if tmp_seq:
+                        seqnames.append(seqname)
+                        seqs.append(''.join(tmp_seq))
+                    
+                    seqname = l.rstrip()[1:]
+                    tmp_seq = []
+                else:
+                    tmp_seq.append(l.rstrip())
+
+        if tmp_seq:
+            seqnames.append(seqname)
+            seqs.append(''.join(tmp_seq))
+            
+        return dict(zip(seqnames, seqs))
 
     @staticmethod
     def _unpickle_seq_d(pickle_path):
