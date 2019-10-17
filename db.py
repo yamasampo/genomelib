@@ -3,6 +3,7 @@ import re
 import pickle
 import pandas as pd
 from collections.abc import Mapping
+from .constants import *
 
 class Database(Mapping):
     """ This class inherits Mapping class. __iter__, __getitem__ and __len__ 
@@ -10,6 +11,10 @@ class Database(Mapping):
     def __init__(self, df, description=''):
         self.df = df
         self.description = description
+
+    @property
+    def columns(self):
+        return self.df.columns
         
     def filter(self, sort_by='', ascending=True, **kwargs):
         '''
@@ -45,20 +50,20 @@ class Database(Mapping):
             if isinstance(v, str):
                 if v == '*':
                     pass
-                elif re.search('^gt\d+', v):
-                    v = float(re.search('^gt(\d+\.*\d*)$', v).group(1))
+                elif re.search('^gt-*\d+', v):
+                    v = float(re.search('^gt(-{0,1}\d+\.*\d*)$', v).group(1))
                     res_df = res_df[res_df[k] > v]
-                elif re.search('^gte\d+', v):
-                    v = float(re.search('^gte(\d+\.*\d*)$', v).group(1))
+                elif re.search('^gte-*\d+', v):
+                    v = float(re.search('^gte(-{0,1}\d+\.*\d*)$', v).group(1))
                     res_df = res_df[res_df[k] >= v]
-                elif re.search('^lt\d+', v):
-                    v = float(re.search('^lt(\d+\.*\d*)$', v).group(1))
+                elif re.search('^lt-*\d+', v):
+                    v = float(re.search('^lt(-{0,1}\d+\.*\d*)$', v).group(1))
                     res_df = res_df[res_df[k] < v]
-                elif re.search('^lte\d+', v):
-                    v = float(re.search('lte(\d+\.*\d*)$', v).group(1))
+                elif re.search('^lte-*\d+', v):
+                    v = float(re.search('lte(-{0,1}\d+\.*\d*)$', v).group(1))
                     res_df = res_df[res_df[k] <= v]
-                elif re.search('^ne\d+', v):
-                    v = float(re.search('ne(\d+\.*\d*)$', v).group(1))
+                elif re.search('^ne-*\d+', v):
+                    v = float(re.search('ne(-{0,1}\d+\.*\d*)$', v).group(1))
                     res_df = res_df[res_df[k] != v]
                 elif re.search('^c\/', v):
                     v = re.search('^c\/(.+)\/$', v).group(1)
@@ -119,12 +124,13 @@ class Database(Mapping):
             name=type(self).__name__, desc=self.description, size=self.__len__()
         )
 
-class EvoGenDatabase(Database):
+class EvoGenDatabase(Database):    
     def __init__(
         self, 
         annot:pd.DataFrame, # Gene info table.
         seq_d:pd.DataFrame, # Dictionary or DataFrame of DNA sequence 
         sfs_d:dict={}, # Gene SFS
+        repl_Nan_with=-9,
         description=''): # Description on this dataset
         """ 
         Attributes
@@ -132,11 +138,15 @@ class EvoGenDatabase(Database):
         df: pd.DataFrame
             A row is a gene and you can list any kind of information in columns
         """
+        # Load main DataFrame
         self.df = self._add_seq_to_annot(annot, seq_d)
+        self.df.fillna(repl_Nan_with, inplace=True)
+
         if sfs_d:
             self.load_sfs(sfs_d)
         self.description = description
 
+    # ----- Property ----- #
     @property
     def reduced_df(self):
         # Returns only columns except SFS data
@@ -148,6 +158,7 @@ class EvoGenDatabase(Database):
         ]
         return self.df[cols]
 
+    # ----- Reading methods ----- #
     @classmethod
     def from_files(
         cls, annot_path, seq_path, seq_fmt, sfs_path='', description='', **kwargs):
@@ -223,6 +234,44 @@ class EvoGenDatabase(Database):
         # or all sfs data has to be separated?
         # Maybe store SFS object in a dictionary.
 
+    # ----- Add ----- #
+    def apply(self, func, **kwargs):
+        return self.df.apply(func, axis=1, **kwargs)
+
+    def add_col(self, func, col_name, **kwargs):
+        self.df[col_name] = self.apply(func, **kwargs)
+
+    def add_GC3_AAs(self, cod_type):
+        col_name = f'GC3_{cod_type}'
+        gc_content = lambda seq: -9 if len(seq) == 0 else \
+            (seq.count('G') + seq.count('C')) / len(seq)
+        cds_to_cod_list = lambda cds: [cds[n:n+3] for n in range(0, len(cds), 3)]
+        match_AA = lambda codon: GENETIC_CODE_i[codon] in CODON_TYPES[cod_type]
+        
+        func = lambda x: -9 if 'N' in x['seq'] or x['cds_len'] % 3 != 0 else \
+            gc_content(
+                ''.join([codon[2] 
+                for codon in list(filter(match_AA, cds_to_cod_list(x['seq'])))])
+            )
+
+        self.add_col(func, col_name)
+
+    def add_GC3_iAA(self, aa):
+        col_name = f'GC3_{aa}'
+        gc_content = lambda seq: -9 if len(seq) == 0 else \
+            (seq.count('G') + seq.count('C')) / len(seq)
+        cds_to_cod_list = lambda cds: [cds[n:n+3] for n in range(0, len(cds), 3)]
+        match_AA = lambda codon: GENETIC_CODE_i[codon] == aa
+        
+        func = lambda x: -9 if 'N' in x['seq'] or x['cds_len'] % 3 != 0 else \
+            gc_content(
+                ''.join([codon[2] 
+                for codon in list(filter(match_AA, cds_to_cod_list(x['seq'])))])
+            )
+
+        self.add_col(func, col_name)
+
+    # ----- Iteration method ----- #
     def gen_seq(self, sort_by='', ascending=True, **kwargs):
         """ Generate registered nucleotide sequences. kwargs accepts options 
         for filtering CDS. 
@@ -243,6 +292,7 @@ class EvoGenDatabase(Database):
         for i, seq_id in zip(id_list, seq_id_list):
             yield i, seq_id, self._d[seq_id]
 
+    # ----- Output method ----- #
     def to_fasta(fasta_path, seq_name_encoder=None, itemnum=False, 
                  sort_by='', ascending=True, **kwargs):
         if not seq_name_encoder:
