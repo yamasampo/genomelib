@@ -1,5 +1,6 @@
 
 import re
+import pickle
 import pandas as pd
 from collections.abc import Mapping
 
@@ -121,7 +122,7 @@ class Database(Mapping):
 class EvoGenDatabase(Database):
     def __init__(
         self, 
-        df:pd.DataFrame, # Gene info table.
+        annot:pd.DataFrame, # Gene info table.
         seq_d:pd.DataFrame, # Dictionary or DataFrame of DNA sequence 
         sfs_d:dict={}, # Gene SFS
         description=''): # Description on this dataset
@@ -131,35 +132,39 @@ class EvoGenDatabase(Database):
         df: pd.DataFrame
             A row is a gene and you can list any kind of information in columns
         """
-        self.df = self._merge_seq_and_metadata(df, seq_d)
-        if sfs:
-            self.load_sfs(sfs)
+        self.df = self._add_seq_to_annot(annot, seq_d)
+        if sfs_d:
+            self.load_sfs(sfs_d)
         self.description = description
 
     @property
     def reduced_df(self):
         # Returns only columns except SFS data
         # columns starting with "sfs" indicate SFS data columns
-        cols = [col for col in self.df.columns if not col.startswith('sfs')]
-        return self._df[cols]
+        cols = [
+            'info_id', 'chr', 'tss', 'cds_start_tssd', 'cds_end_tssd', 'cds_len', 
+            'tr_len', 'strand', 'alt_spl', 'exon_num', 'gene_name', 'fbgn', 'fbtr',
+            'error_code'
+        ]
+        return self.df[cols]
 
     @classmethod
-    def from_FASTA(
-        cls, df_path, seq_path, seq_fmt, sfs_path='', description='', **kwargs):
-        df = pd.read_csv(df_path, **kwargs)
-        seq_d = read_seq_file(seq_path, seq_fmt)
+    def from_files(
+        cls, annot_path, seq_path, seq_fmt, sfs_path='', description='', **kwargs):
+        annot = pd.read_csv(annot_path, **kwargs)
+        seq_d = cls.read_seq_file(seq_path, seq_fmt)
         sfs = parse_gene_sfs(sfs_path) if sfs_path else {}
 
-        return cls(df, seq_d, sfs, description)
+        return cls(annot, seq_d, sfs, description)
 
-    @staticmethod
-    def read_seq_file(seq_path:str, seq_fmt:str, **kwargs):
+    @classmethod
+    def read_seq_file(cls, seq_path:str, seq_fmt:str, **kwargs):
         if seq_fmt == 'fasta':
-            return _read_fasta_to_dict(seq_path)
+            return cls._read_fasta_to_dict(seq_path)
         if seq_fmt == 'pickle':
-            return _unpickle_seq_d(seq_path)
+            return cls._unpickle_seq_d(seq_path)
         if seq_fmt == 'df':
-            return pd.read_csv(seq_path, **kwargs)
+            return pd.read_csv(seq_path, **kwargs).todict()
         raise IndexError(f'Unknown format argument {seq_fmt} found. '\
             'Currently "fasta", "pickle" or "df" are only supported.')
 
@@ -184,7 +189,7 @@ class EvoGenDatabase(Database):
         if tmp_seq:
             seqnames.append(seqname)
             seqs.append(''.join(tmp_seq))
-            
+
         return dict(zip(seqnames, seqs))
 
     @staticmethod
@@ -199,10 +204,18 @@ class EvoGenDatabase(Database):
         pass
 
     @staticmethod
-    def _merge_seq_and_metadata(df, seq_d):
-        pass
+    def _add_seq_to_annot(annot, seq_d, seq_key_col='seq_id'):
+        if 'seq' in annot.columns:
+            raise KeyError('Column named "seq" alread exists in annot table.')
 
-    def load_sfs(self, sfs):
+        # Put nucleotide sequence in df
+        annot['seq'] = annot.apply(lambda x: seq_d[x[seq_key_col]], axis=1)
+        # Check if seq length and registered len matches
+        assert annot.apply(lambda x: x['cds_len'] == len(x['seq']), axis=1).all()
+
+        return annot
+
+    def load_sfs(self, sfs_d):
         self._sfs_d = sfs
         # Conncet to df table
         # TODO: Think how store SFS metadata such as codon and amino acid types?
