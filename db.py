@@ -120,8 +120,9 @@ class Database(Mapping):
         #         yield self.df.loc[k, :]
     
     def __repr__(self):
-        return '<{name}: {desc} ({size} records)>'.format(
-            name=type(self).__name__, desc=self.description, size=self.__len__()
+        return '<{name}: {desc} ({row} records x {col} columns)>'.format(
+            name=type(self).__name__, desc=self.description, row=self.__len__(),
+            col=len(self.columns)
         )
 
 class EvoGenDatabase(Database):    
@@ -161,12 +162,13 @@ class EvoGenDatabase(Database):
     # ----- Reading methods ----- #
     @classmethod
     def from_files(
-        cls, annot_path, seq_path, seq_fmt, sfs_path='', description='', **kwargs):
+        cls, annot_path, seq_path, seq_fmt, sfs_path='', repl_Nan_with=-9, 
+        description='', **kwargs):
         annot = pd.read_csv(annot_path, **kwargs)
         seq_d = cls.read_seq_file(seq_path, seq_fmt)
         sfs = parse_gene_sfs(sfs_path) if sfs_path else {}
 
-        return cls(annot, seq_d, sfs, description)
+        return cls(annot, seq_d, sfs, repl_Nan_with, description)
 
     @classmethod
     def read_seq_file(cls, seq_path:str, seq_fmt:str, **kwargs):
