@@ -6,7 +6,7 @@ from .constants import AA_CODON_3rdpos_BASES
 
 def get_anc_base_comp_df(
     collapse_seq_flist, anc_prob_file, node_name1, node_name2, 
-    aminoacid='', collapse_seq_dir=''):
+    aminoacid='', collapse_seq_dir='', anc_prob_out_path=''):
 
     # Add gene_id column to ancestor probability table
     if not collapse_seq_dir:
@@ -17,6 +17,8 @@ def get_anc_base_comp_df(
 
     # Count base composition
     anc_prob_df = melt_anc_prob_table(anc_prob_table, node_name1, node_name2)
+    if anc_prob_out_path:
+        anc_prob_df.to_csv(anc_prob_out_path, index=False)
     
     if aminoacid:
         bases = AA_CODON_3rdpos_BASES[aminoacid]
@@ -126,11 +128,11 @@ def add_gene_id(anc_table, seq_len_d):
 
     return anc_table
 
-def list_to_DF(series):
+def list_to_DF(series, node_name1, node_name2):
     parts = series['anc_probs'].split('\t')
     anc_probs = pd.DataFrame(
         [parts[i:i+3] for i in range(0, len(parts), 3)],
-        columns=['ms', 'm', 'prob']
+        columns=[node_name1, node_name2, 'prob']
     )
     anc_probs['gene_id'] = series['gene_id']
     anc_probs['pos'] = series['pos']
@@ -142,7 +144,8 @@ def list_to_DF(series):
 
 def melt_anc_prob_table(anc_table, node_name1, node_name2):
     anc_df = pd.concat(
-        list(anc_table.apply(list_to_DF, axis=1)), 
+        list(anc_table.apply(
+            lambda x: list_to_DF(x, node_name1, node_name2), axis=1)), 
         axis=0
     )
     anc_df['prob'] = anc_df['prob'].astype(float)
