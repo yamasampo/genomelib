@@ -129,10 +129,11 @@ class EvoGenDatabase(Database):
     def __init__(
         self, 
         annot:pd.DataFrame, # Gene info table.
-        seq_d:pd.DataFrame, # Dictionary or DataFrame of DNA sequence 
+        seq_d:dict={}, # Dictionary or DataFrame of DNA sequence
+        anc_state_df:pd.DataFrame=None, # A list of base composition for anocestor node
         sfs_d:dict={}, # Gene SFS
         repl_Nan_with=-9,
-        description=''): # Description on this dataset
+        description='', **kwagrs): # Description on this dataset
         """ 
         Attributes
         ----------
@@ -140,8 +141,20 @@ class EvoGenDatabase(Database):
             A row is a gene and you can list any kind of information in columns
         """
         # Load main DataFrame
-        self.df = self._add_seq_to_annot(annot, seq_d)
-        self.df.fillna(repl_Nan_with, inplace=True)
+        if seq_d:
+            self.df = self._add_seq_to_annot(annot, seq_d)
+            self.df.fillna(repl_Nan_with, inplace=True)
+
+        else:
+            self.df = annot
+            
+        if anc_state_df:
+            try:
+                assert kwargs['inplace'] == True, 'inplace argument has to be '\
+                    'False since class does inplace automatically.'
+            except KeyError:
+                pass
+            self.df = self.merge_df(anc_state_df)
 
         if sfs_d:
             self.load_sfs(sfs_d)
@@ -162,7 +175,7 @@ class EvoGenDatabase(Database):
     # ----- Reading methods ----- #
     @classmethod
     def from_files(
-        cls, annot_path, seq_path, seq_fmt, sfs_path='', repl_Nan_with=-9, 
+        cls, annot_path, seq_path='', seq_fmt='', sfs_path='', repl_Nan_with=-9, 
         description='', **kwargs):
         annot = pd.read_csv(annot_path, **kwargs)
         seq_d = cls.read_seq_file(seq_path, seq_fmt)
@@ -227,6 +240,13 @@ class EvoGenDatabase(Database):
         assert annot.apply(lambda x: x['cds_len'] == len(x['seq']), axis=1).all()
 
         return annot
+
+    @staticmethod
+    def _merge_anc_state_to_annot(annot, anc_state_df, **kwargs):
+        return pd.merge(annot, anc_state_df, **kwargs)
+
+    def merge_df(self, df2, **kwargs):
+        return pd.merge(self.df, df2, **kwargs)
 
     def load_sfs(self, sfs_d):
         self._sfs_d = sfs
