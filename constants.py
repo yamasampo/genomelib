@@ -28,3 +28,26 @@ AA_CODON_3rdpos_BASES = dict(zip(
     TC_END_2f+AG_END_2f+CODON_TYPES['4f'], 
     TCs+AGs+TCAGs
 ))
+
+# For SFS
+FREQUENCY_POOL_CLASS = {
+    'Dm' :{
+        1: [1], 2: [2], 3: [3], 4:[4, 5], 5:[6, 7],
+        6: [8, 9, 10], 7: [11, 12, 13], 8: [14]
+    },
+    'Ds':{
+        1: [1], 2: [2], 3: [3], 4: [4, 5], 5: [6, 7], 6: [8, 9, 10],
+        7: [11, 12, 13, 14], 8: [15, 16, 17, 18, 19, 20], 9:[21]
+    }
+}
+
+MUTATION_POOL_CLASS = {
+    'WS': ['AC', 'AG', 'TC', 'TG'],
+    'SW': ['CA', 'CT', 'GA', 'GT'],
+    'WW': ['AT', 'TA'],'SS': ['CG', 'GC'],
+    'neu': ['AT', 'TA', 'CG', 'GC']
+}
+
+MUTATIONS = [b1+b2 for b1 in list(BASES) for b2 in list(BASES) if b1!=b2] \
+    + list(MUTATION_POOL_CLASS.keys())
+
