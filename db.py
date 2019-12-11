@@ -181,7 +181,7 @@ class EvoGenDatabase(Database):
         seq_d = cls.read_seq_file(seq_path, seq_fmt)
         sfs = parse_gene_sfs(sfs_path) if sfs_path else {}
 
-        return cls(annot, seq_d, sfs, repl_Nan_with, description)
+        return cls(annot, seq_d, sfs, None, repl_Nan_with, description)
 
     @classmethod
     def read_seq_file(cls, seq_path:str, seq_fmt:str, **kwargs):
