@@ -8,7 +8,8 @@ from myBasic.num import bootstrap
 
 class GeneSFS(object):
     def __init__(self, gene_ids, mut_sfs_d, description=''):
-        self.gene_ids, self.mut_sfs_d = gene_ids, mut_sfs_d
+        self.gene_ids, self.mut_sfs_d = np.array(gene_ids), mut_sfs_d
+        self.description = description
 
     @classmethod
     def from_geneSFS_path(cls, geneSFS_path, print_gene_num=False):
@@ -74,7 +75,31 @@ class GeneSFS(object):
             if print_gene_num:
                 print('{}\tfound in {} genes'.format(mut, len(sfs_matrix)))
 
-        return gene_id_list, mut_sfs_d
+        return GeneSFS(gene_id_list, mut_sfs_d)
+
+    @staticmethod
+    def pool_geneSFS(geneSFS_paths):
+        pooled_gsfs = GeneSFS([], [])
+
+        for geneSFS_path in geneSFS_paths:
+            gsfs = GeneSFS.from_geneSFS_path(geneSFS_path)
+
+            if len(pooled_gsfs.gene_ids) > 0:
+                pooled_gene_id = list(set(pooled_gsfs.gene_ids) & 
+                                      set(gsfs.gene_ids))
+
+                pooled_gsfs = pooled_gsfs.extract_subset(pooled_gene_id)
+                subset_gsfs = gsfs.extract_subset(pooled_gene_id)
+
+                assert pooled_gsfs.gene_ids.all() == subset_gsfs.gene_ids.all()
+
+                for mutation, sfs_matrix in subset_gsfs.mut_sfs_d.items():
+                    pooled_gsfs.mut_sfs_d[mutation] += np.array(sfs_matrix)
+
+            else:
+                pooled_gsfs = GeneSFS(gsfs.gene_ids, gsfs.mut_sfs_d)
+                
+        return pooled_gsfs
 
     def extract_subset(self, gene_list, gene_match_func=None):
         out_d = dict.fromkeys(self.mut_sfs_d.keys())
@@ -142,6 +167,21 @@ class GeneSFS(object):
         })
         
         return SFS(df, species, rep_num, cod_type, self.description)
+
+    def to_file(self, path):
+        lines = []
+
+        for i, gene_id in enumerate(self.gene_ids):
+            lines.append(f'>{gene_id}')
+
+            for mutation in self.mut_sfs_d.keys():
+                sfs = self.mut_sfs_d[mutation][i]
+                lines.append(
+                    '\t'.join([mutation] + list(map(str, sfs)))
+                )
+
+        with open(path, 'w') as f:
+            print('\n'.join(lines), file=f)
 
     def __len__(self):
         return len(self.gene_ids)
