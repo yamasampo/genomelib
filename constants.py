@@ -1,4 +1,4 @@
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 
 CODON_TYPES = {
     '2f': 'FYHQNKDECs',
@@ -13,6 +13,9 @@ transl_code_i = 'F2L6I3M1V4S4P4T4A4Y2*2H2Q2N2K2D2E2C2*1W1R4s2R2G4'
 transl_i = ''.join([
     str(a*int(b)) for a, b in zip(transl_code_i[::2], transl_code_i[1::2])])
 GENETIC_CODE_i = OrderedDict(zip(CODONS, transl_i))
+SYNONYMOUS_CODONS = defaultdict(list)
+for codon, aa in zip(CODONS, transl_i):
+    SYNONYMOUS_CODONS[aa].append(codon)
 
 TC_END_2f = 'FYHNDCs'
 AG_END_2f = 'QKE'
