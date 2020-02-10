@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 from .db import Database
 from .constants import FREQUENCY_POOL_CLASS, MUTATION_POOL_CLASS, MUTATIONS
+from barplot.barplot import plot
 from myBasic.num import bootstrap
 
 class GeneSFS(object):
@@ -78,30 +79,33 @@ class GeneSFS(object):
         return GeneSFS(gene_id_list, mut_sfs_d)
 
     @staticmethod
-    def pool_geneSFS(geneSFS_paths):
+    def pool_geneSFS(geneSFS_list):
         pooled_gsfs = GeneSFS([], [])
 
-        for geneSFS_path in geneSFS_paths:
-            gsfs = GeneSFS.from_geneSFS_path(geneSFS_path)
+        for gsfs in geneSFS_list:
+            # gsfs = GeneSFS.from_geneSFS_path(geneSFS_path)
 
             if len(pooled_gsfs.gene_ids) > 0:
                 pooled_gene_id = list(set(pooled_gsfs.gene_ids) & 
                                       set(gsfs.gene_ids))
 
-                pooled_gsfs = pooled_gsfs.extract_subset(pooled_gene_id)
-                subset_gsfs = gsfs.extract_subset(pooled_gene_id)
+                pooled_gsfs = pooled_gsfs.extract_gene_subset(pooled_gene_id)
+                subset_gsfs = gsfs.extract_gene_subset(pooled_gene_id)
 
                 assert pooled_gsfs.gene_ids.all() == subset_gsfs.gene_ids.all()
 
                 for mutation, sfs_matrix in subset_gsfs.mut_sfs_d.items():
-                    pooled_gsfs.mut_sfs_d[mutation] += np.array(sfs_matrix)
+                    try:
+                        pooled_gsfs.mut_sfs_d[mutation] += np.array(sfs_matrix)
+                    except KeyError:
+                        pooled_gsfs.mut_sfs_d[mutation] = np.array(sfs_matrix)
 
             else:
                 pooled_gsfs = GeneSFS(gsfs.gene_ids, gsfs.mut_sfs_d)
                 
         return pooled_gsfs
 
-    def extract_subset(self, gene_list, gene_match_func=None):
+    def extract_gene_subset(self, gene_list, gene_match_func=None):
         out_d = dict.fromkeys(self.mut_sfs_d.keys())
         if not gene_match_func:
             gene_match_func = lambda gene_name: gene_name
@@ -115,6 +119,14 @@ class GeneSFS(object):
             
         gene_id = np.array(self.gene_ids)
         return GeneSFS(gene_id[out_gene_idx], out_d)
+
+    def extract_mutation_subset(self, mutations, new_description=''):
+        new_mut_d = {}
+        for mut, sfs_matrix in self.mut_sfs_d.items():
+            if mut in set(mutations):
+                new_mut_d[mut] = sfs_matrix
+        
+        return GeneSFS(self.gene_ids, new_mut_d, new_description)
 
     def to_SFS(self, species, cod_type, rep_num):
         """ Bootstrap genes from a given list of genes for rep_num times. This
@@ -166,7 +178,7 @@ class GeneSFS(object):
             'count': count_list
         })
         
-        return SFS(df, species, rep_num, cod_type, self.description)
+        return boot_indices2, SFS(df, species, rep_num, cod_type, self.description)
 
     def to_file(self, path):
         lines = []
