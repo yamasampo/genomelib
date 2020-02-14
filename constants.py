@@ -9,10 +9,18 @@ BASES = 'TCAG'
 CODONS = [a+b+c for b in BASES for a in BASES for c in BASES]
 STOP_CODONS = ['TGA', 'TAG', 'TAA']
 AMINO_ACIDS = 'ARNDCQEGHILKMFPSTWYV'
+
 transl_code_i = 'F2L6I3M1V4S4P4T4A4Y2*2H2Q2N2K2D2E2C2*1W1R4s2R2G4'
+transl_code_b = 'F2l2L4I3M1V4S4P4T4A4Y2*2H2Q2N2K2D2E2C2*1W1R4s2r2G4'
+
 transl_i = ''.join([
     str(a*int(b)) for a, b in zip(transl_code_i[::2], transl_code_i[1::2])])
+transl_b = ''.join([
+    str(a*int(b)) for a, b in zip(transl_code_b[::2], transl_code_b[1::2])])
+
 GENETIC_CODE_i = OrderedDict(zip(CODONS, transl_i))
+GENETIC_CODE_b = OrderedDict(zip(CODONS, transl_b))
+
 SYNONYMOUS_CODONS = defaultdict(list)
 for codon, aa in zip(CODONS, transl_i):
     SYNONYMOUS_CODONS[aa].append(codon)
