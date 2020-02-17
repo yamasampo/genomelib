@@ -21,9 +21,13 @@ transl_b = ''.join([
 GENETIC_CODE_i = OrderedDict(zip(CODONS, transl_i))
 GENETIC_CODE_b = OrderedDict(zip(CODONS, transl_b))
 
-SYNONYMOUS_CODONS = defaultdict(list)
+SYNONYMOUS_CODONS_i = defaultdict(list)
 for codon, aa in zip(CODONS, transl_i):
-    SYNONYMOUS_CODONS[aa].append(codon)
+    SYNONYMOUS_CODONS_i[aa].append(codon)
+
+SYNONYMOUS_CODONS_b = defaultdict(list)
+for codon, aa in zip(CODONS, transl_b):
+    SYNONYMOUS_CODONS_b[aa].append(codon)
 
 TC_END_2f = 'FYHNDCs'
 AG_END_2f = 'QKE'
