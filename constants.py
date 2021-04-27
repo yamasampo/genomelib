@@ -29,6 +29,32 @@ SYNONYMOUS_CODONS_b = defaultdict(list)
 for codon, aa in zip(CODONS, transl_b):
     SYNONYMOUS_CODONS_b[aa].append(codon)
 
+AMINO_ACID_CODON_CLASS_b = {
+    'F': 'TTY',
+    'l': 'TTR',
+    'L': 'CTN',
+    'I': 'ATH',
+    'M': 'ATG',
+    'V': 'GTN',
+    'S': 'TCN',
+    'P': 'CCN',
+    'T': 'ACN',
+    'A': 'GCN',
+    'Y': 'TAY',
+    'H': 'CAY',
+    'Q': 'CAR',
+    'N': 'AAY',
+    'K': 'AAR',
+    'D': 'GAY',
+    'E': 'GAR', 
+    'C': 'TGY',
+    'W': 'TGG',
+    'R': 'CGN',
+    's': 'AGY',
+    'r': 'AGR',
+    'G': 'GGN'
+}
+
 TC_END_2f = 'FYHNDCs'
 AG_END_2f = 'QKE'
 
